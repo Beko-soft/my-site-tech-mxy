@@ -1,8 +1,7 @@
 const STORE_KEY = "openlearn.state.v1";
 const THEME_KEY = "openlearn.theme";
 const OAUTH_CLIENT_ID_KEY = "openlearn.oauth.clientId";
-const OAUTH_MANIFEST_URL =
-  "https://github.com/settings/apps/new?name=OpenLearn-MXY&manifest=eyJuYW1lIjoiT3BlbkxlYXJuLU1YWSIsInVybCI6Imh0dHBzOi8vbXh5ZGV2LmNvbS8iLCJwdWJsaWMiOnRydWUsInJlZGlyZWN0X3VybCI6Imh0dHBzOi8vbXh5ZGV2LmNvbS9vYXV0aC1jYWxsYmFjay5odG1sIiwiaG9va19hdHRyaWJ1dGVzIjp7InVybCI6Imh0dHBzOi8vbXh5ZGV2LmNvbS8iLCJhY3RpdmUiOmZhbHNlfSwiZGVmYXVsdF9wZXJtaXNzaW9ucyI6eyJjb250ZW50cyI6IndyaXRlIiwibWV0YWRhdGEiOiJyZWFkIn0sImRlZmF1bHRfZXZlbnRzIjpbXX0";
+const OAUTH_MANIFEST_URL = "https://mxydev.com/setup-github-app.html";
 const GITHUB_API = "https://api.github.com";
 const GITHUB_DEVICE = "https://github.com/login/device/code";
 const GITHUB_TOKEN = "https://github.com/login/oauth/access_token";

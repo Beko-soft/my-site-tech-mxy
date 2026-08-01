@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OpenLearn · GitHub App Kurulumu</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="shell" style="max-width: 620px">
+      <section class="panel" style="padding: 28px; margin-top: 72px">
+        <div class="section-head">
+          <div>
+            <h2>GitHub App Kurulumu</h2>
+            <p class="muted" id="status">GitHub'a yönlendiriliyorsunuz...</p>
+          </div>
+        </div>
+        <p class="muted small">
+          GitHub sayfasında ayarlar otomatik dolu gelecek. Sadece sayfanın altındaki
+          <strong>Create GitHub App</strong> butonuna tıklaman yeterli.
+        </p>
+      </section>
+    </main>
+
+    <form id="manifestForm" method="post" action="https://github.com/settings/apps/new">
+      <input type="hidden" name="manifest" id="manifestInput" />
+    </form>
+
+    <script>
+      const manifest = {
+        name: "OpenLearn-MXY",
+        url: "https://mxydev.com/",
+        public: true,
+        redirect_url: "https://mxydev.com/oauth-callback.html",
+        hook_attributes: {
+          url: "https://mxydev.com/",
+          active: false,
+        },
+        default_permissions: {
+          contents: "write",
+          metadata: "read",
+        },
+        default_events: [],
+      };
+      document.getElementById("manifestInput").value = JSON.stringify(manifest);
+      setTimeout(function () {
+        document.getElementById("manifestForm").submit();
+      }, 900);
+    </script>
+  </body>
+</html>
