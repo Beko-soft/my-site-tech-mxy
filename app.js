@@ -182,26 +182,17 @@ function updateAuthButton() {
 function renderHome() {
   app.innerHTML = `
     <section class="hero">
-      <div>
+      <div class="hero-copy">
         <h1>OpenLearn</h1>
-        <p>GitHub hesabıyla kurs üret, herkes hesap açmadan dersleri okusun. İçerik JSON olarak repoda durur; video, ses ve ek materyaller harici URL ile bağlanır.</p>
+        <p>GitHub hesabınla kurs oluştur, herkes hesap açmadan okusun. Sade, sunucusuz.</p>
         <div class="actions">
           <a class="button" href="#/studio">Kurs oluştur</a>
           <button class="button ghost" id="syncPublic" type="button">GitHub'dan yenile</button>
         </div>
       </div>
-      <aside class="hero-panel" aria-label="OpenLearn mimarisi">
-        <div class="terminal-head"><span></span><span></span><span></span></div>
-        <div class="terminal-body">
-          <div class="terminal-line"><strong>storage</strong><span>GitHub Contents API</span></div>
-          <div class="terminal-line"><strong>auth</strong><span>Device Flow veya token</span></div>
-          <div class="terminal-line"><strong>runtime</strong><span>statik HTML/CSS/JS</span></div>
-          <div class="terminal-line"><strong>media</strong><span>harici URL</span></div>
-        </div>
-      </aside>
     </section>
 
-    <section>
+    <section class="catalog">
       <div class="toolbar">
         <div class="search">
           <input id="searchInput" type="search" placeholder="Kurs ara..." autocomplete="off" />
@@ -408,121 +399,117 @@ function checkAnswer(button) {
 }
 
 function renderStudio() {
-  const course = state.draft || createEmptyCourse();
-  state.draft = course;
-  saveState();
+  if (!state.draft) state.draft = createEmptyCourse();
+  const course = state.draft;
+  const live = isCourseLive(course);
+  if (!live) state.draftMode = "info";
+  if (live && !state.draftMode) state.draftMode = "lessons";
   const ownedCourses = getOwnedCourses();
   const canCreate = ownedCourses.length < MAX_COURSES_PER_USER;
   const canAddLesson = course.lessons.length < MAX_LESSONS_PER_COURSE;
+  saveState();
 
   app.innerHTML = `
     <section class="studio-grid">
       <aside class="panel studio-side">
-        <div class="studio-side-block">
-          <div class="section-head compact">
-            <h2>GitHub Deposu</h2>
-          </div>
-          <p class="muted small">Kurslar tek bir JSON dosyası olarak repo içinde saklanır.</p>
-          <div class="auth-grid">
-            <div class="field">
-              <label for="owner">Owner</label>
-              <input id="owner" value="${escapeAttr(state.github.owner)}" placeholder="kullanici veya org" />
-            </div>
-            <div class="field">
-              <label for="repo">Repo</label>
-              <input id="repo" value="${escapeAttr(state.github.repo)}" />
-            </div>
-          </div>
-          <div class="auth-grid">
-            <div class="field">
-              <label for="branch">Branch</label>
-              <input id="branch" value="${escapeAttr(state.github.branch)}" />
-            </div>
-            <div class="field">
-              <label for="path">Dosya</label>
-              <input id="path" value="${escapeAttr(state.github.path)}" />
-            </div>
-          </div>
-          <div class="actions">
-            <button class="button ghost" id="pullCourses" type="button">Çek</button>
-            <button class="button" id="pushCourses" type="button">Kaydet</button>
-          </div>
-          <ul class="status-list">
-            <li><span>Oturum</span><strong>${state.auth?.login ? `@${escapeHtml(state.auth.login)}` : "Yok"}</strong></li>
-            <li><span>Benim kurslarım</span><strong>${ownedCourses.length}/${MAX_COURSES_PER_USER}</strong></li>
-            <li><span>Depolama</span><strong>GitHub JSON</strong></li>
-          </ul>
+        <div class="section-head compact">
+          <h2>Kurslarım</h2>
+          <span class="muted small">${ownedCourses.length}/${MAX_COURSES_PER_USER}</span>
         </div>
-
-        <div class="studio-side-block">
-          <div class="section-head compact">
-            <h2>Kurslarım</h2>
-            <span class="muted small">${state.auth?.login ? "Düzenle / sil" : "Giriş gerekli"}</span>
-          </div>
-          <div class="manage-list">
-            ${renderManagedCourses(ownedCourses)}
-          </div>
+        <div class="manage-list">
+          ${renderManagedCourses(ownedCourses)}
+        </div>
+        <div class="actions">
+          <button class="button" id="newDraft" type="button" ${canCreate ? "" : "disabled"}>+ Yeni kurs</button>
+          <button class="button ghost" id="pullCourses" type="button" title="GitHub'dan kursları çek">Çek</button>
+          <button class="button ghost" id="pushCourses" type="button" title="Kursları GitHub'a kaydet">Kaydet</button>
         </div>
       </aside>
 
       <section class="panel studio-main">
-        <div class="section-head">
-          <div>
-            <h2>Kurs Düzenleyici</h2>
-            <p class="muted">Önce kurs bilgilerini gir; dersleri istediğin gibi ekle. Dersler isteğe bağlıdır.</p>
-          </div>
-          <button class="button subtle" id="newDraft" type="button" ${canCreate ? "" : "disabled"}>Yeni kurs</button>
-        </div>
-
-        ${renderDraftPreview(course)}
-
-        <div class="split">
-          <div class="field">
-            <label for="title">Kurs adı</label>
-            <input id="title" value="${escapeAttr(course.title)}" placeholder="Örnek: React'e Giriş" />
-          </div>
-          <div class="field">
-            <label for="level">Seviye</label>
-            <select id="level">
-              ${["Başlangıç", "Orta", "İleri"].map((level) => `<option ${course.level === level ? "selected" : ""}>${level}</option>`).join("")}
-            </select>
-          </div>
-        </div>
-        <div class="field">
-          <label for="description">Kısa açıklama</label>
-          <textarea id="description">${escapeHtml(course.description)}</textarea>
-        </div>
-        <div class="split">
-          <div class="field">
-            <label for="bannerUrl">Banner URL</label>
-            <input id="bannerUrl" value="${escapeAttr(course.bannerUrl || "")}" placeholder="https://.../banner.jpg" />
-          </div>
-          <div class="field">
-            <label for="logoUrl">Logo URL</label>
-            <input id="logoUrl" value="${escapeAttr(course.logoUrl || "")}" placeholder="https://.../logo.png" />
-          </div>
-        </div>
-
-        <div class="section-head lessons-head">
-          <div>
-            <h2>Dersler</h2>
-            <p class="muted">${course.lessons.length}/${MAX_LESSONS_PER_COURSE} ders</p>
-          </div>
-          <button class="button ghost" id="addLesson" type="button" ${canAddLesson ? "" : "disabled"}>+ Ders ekle</button>
-        </div>
-        <div id="lessonEditors"></div>
-
-        <div class="actions editor-actions">
-          <button class="button" id="saveDraft" type="button">Yerel kaydet</button>
-          <button class="button ghost" id="publishDraft" type="button">Listeye ekle / yayınla</button>
-          <button class="button danger" id="deleteDraft" type="button">Bu kursu sil</button>
-        </div>
+        ${renderStudioMain(course, live, canAddLesson)}
       </section>
     </section>
   `;
 
   bindStudio();
-  paintLessonEditors();
+  if (live && state.draftMode === "lessons") paintLessonEditors();
+}
+
+function isCourseLive(course) {
+  if (course._originalId) return true;
+  return state.courses.some((item) => item.id === course.id);
+}
+
+function renderStudioMain(course, live, canAddLesson) {
+  if (!live || state.draftMode === "info") {
+    return `
+      <div class="section-head">
+        <div>
+          <h2>Kurs Oluştur</h2>
+          <p class="muted">Önce kursu oluştur. Canlıya alınca dersleri sağdan eklersin.</p>
+        </div>
+        ${live ? `<button class="button subtle" id="backToLessons" type="button">Derslere dön</button>` : ""}
+      </div>
+
+      ${renderDraftPreview(course)}
+
+      <div class="split">
+        <div class="field">
+          <label for="title">Kurs adı</label>
+          <input id="title" value="${escapeAttr(course.title)}" placeholder="Örnek: React'e Giriş" />
+        </div>
+        <div class="field">
+          <label for="level">Seviye</label>
+          <select id="level">
+            ${["Başlangıç", "Orta", "İleri"].map((level) => `<option ${course.level === level ? "selected" : ""}>${level}</option>`).join("")}
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label for="description">Kısa açıklama</label>
+        <textarea id="description">${escapeHtml(course.description)}</textarea>
+      </div>
+      <div class="split">
+        <div class="field">
+          <label for="bannerUrl">Banner URL</label>
+          <input id="bannerUrl" value="${escapeAttr(course.bannerUrl || "")}" placeholder="https://.../banner.jpg" />
+        </div>
+        <div class="field">
+          <label for="logoUrl">Logo URL</label>
+          <input id="logoUrl" value="${escapeAttr(course.logoUrl || "")}" placeholder="https://.../logo.png" />
+        </div>
+      </div>
+
+      <div class="actions editor-actions">
+        <button class="button" id="publishDraft" type="button">${live ? "Değişiklikleri kaydet" : "Kursu oluştur ve canlıya al"}</button>
+        <button class="button ghost" id="saveDraft" type="button">Taslak kaydet</button>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="section-head">
+      <div>
+        <h2>${escapeHtml(course.title)}</h2>
+        <p class="muted">${escapeHtml(course.level || "Genel")} · ${course.lessons.length}/${MAX_LESSONS_PER_COURSE} ders</p>
+      </div>
+      <button class="button subtle" id="editInfo" type="button">Bilgileri düzenle</button>
+    </div>
+
+    <div class="section-head lessons-head">
+      <div>
+        <h2>Dersler</h2>
+        <p class="muted">Dersleri sağdan ekle; video, görsel veya markdown içerik kullan.</p>
+      </div>
+      <button class="button" id="addLesson" type="button" ${canAddLesson ? "" : "disabled"}>+ Ders ekle</button>
+    </div>
+    <div id="lessonEditors"></div>
+
+    <div class="actions editor-actions">
+      <button class="button danger" id="deleteDraft" type="button">Bu kursu sil</button>
+    </div>
+  `;
 }
 
 function renderDraftPreview(course) {
@@ -590,26 +577,25 @@ function renderManagedCourses(courses) {
 }
 
 function bindStudio() {
-  ["owner", "repo", "branch", "path"].forEach((id) => {
-    document.querySelector(`#${id}`).addEventListener("input", (event) => {
-      state.github[id] = event.target.value.trim();
-      saveState();
-    });
-  });
+  const on = (selector, handler) => {
+    const node = document.querySelector(selector);
+    if (node) node.addEventListener("click", handler);
+  };
 
-  document.querySelector("#pullCourses").addEventListener("click", fetchCoursesFromGitHub);
-  document.querySelector("#pushCourses").addEventListener("click", pushCoursesToGitHub);
-  document.querySelector("#newDraft").addEventListener("click", () => {
+  on("#pullCourses", fetchCoursesFromGitHub);
+  on("#pushCourses", pushCoursesToGitHub);
+  on("#newDraft", () => {
     if (!state.auth?.login) return toast("Yeni kurs için GitHub girişi gerekli.");
     if (getOwnedCourses().length >= MAX_COURSES_PER_USER) {
       return toast(`Bir kullanıcı en fazla ${MAX_COURSES_PER_USER} kurs oluşturabilir.`);
     }
     state.draft = createEmptyCourse();
     state.draft.owner = state.auth.login;
+    state.draftMode = "info";
     saveState();
     renderStudio();
   });
-  document.querySelector("#addLesson").addEventListener("click", () => {
+  on("#addLesson", () => {
     if (state.draft.lessons.length >= MAX_LESSONS_PER_COURSE) {
       return toast(`Bir kursta en fazla ${MAX_LESSONS_PER_COURSE} ders olabilir.`);
     }
@@ -618,11 +604,19 @@ function bindStudio() {
     saveState();
     renderStudio();
   });
-  document.querySelector("#saveDraft").addEventListener("click", saveDraftFromForm);
-  document.querySelector("#publishDraft").addEventListener("click", publishDraft);
-  document
-    .querySelector("#deleteDraft")
-    .addEventListener("click", () => deleteCourse(state.draft._originalId || state.draft.id));
+  on("#saveDraft", saveDraftFromForm);
+  on("#publishDraft", publishDraft);
+  on("#backToLessons", () => {
+    state.draftMode = "lessons";
+    saveState();
+    renderStudio();
+  });
+  on("#editInfo", () => {
+    state.draftMode = "info";
+    saveState();
+    renderStudio();
+  });
+  on("#deleteDraft", () => deleteCourse(state.draft._originalId || state.draft.id));
   document.querySelectorAll("[data-edit-course]").forEach((button) => {
     button.addEventListener("click", () => editCourse(button.dataset.editCourse));
   });
@@ -631,6 +625,7 @@ function bindStudio() {
   });
   ["title", "description", "level", "bannerUrl", "logoUrl"].forEach((id) => {
     const field = document.querySelector(`#${id}`);
+    if (!field) return;
     const syncPreview = () => {
       saveDraftFromForm({ silent: true, noNormalize: true });
       updateDraftPreview();
@@ -711,16 +706,28 @@ function paintLessonEditors() {
       renderStudio();
     });
   });
+
+  holder.querySelectorAll("[data-field]").forEach((field) => {
+    const sync = () => saveDraftFromForm({ silent: true, noNormalize: true });
+    field.addEventListener("input", sync);
+    field.addEventListener("change", sync);
+  });
 }
 
 function saveDraftFromForm(options = {}) {
   const draft = state.draft;
-  draft.title = document.querySelector("#title").value.trim() || "Adsız kurs";
-  draft.description = document.querySelector("#description").value.trim();
-  draft.level = document.querySelector("#level").value;
-  draft.owner = state.auth?.login || state.github.owner || "local";
-  draft.bannerUrl = document.querySelector("#bannerUrl").value.trim();
-  draft.logoUrl = document.querySelector("#logoUrl").value.trim();
+  const title = document.querySelector("#title");
+  const description = document.querySelector("#description");
+  const level = document.querySelector("#level");
+  const bannerUrl = document.querySelector("#bannerUrl");
+  const logoUrl = document.querySelector("#logoUrl");
+
+  if (title) draft.title = title.value.trim() || "Adsız kurs";
+  if (description) draft.description = description.value.trim();
+  if (level) draft.level = level.value;
+  if (bannerUrl) draft.bannerUrl = bannerUrl.value.trim();
+  if (logoUrl) draft.logoUrl = logoUrl.value.trim();
+  draft.owner = state.auth?.login || "local";
   draft.id = slugify(draft.title);
 
   document.querySelectorAll("[data-lesson-editor]").forEach((editor) => {
@@ -756,6 +763,7 @@ function editCourse(id) {
   if (state.auth?.login !== course.owner) return toast("Sadece kendi kurslarını düzenleyebilirsin.");
   state.draft = clone(course);
   state.draft._originalId = course.id;
+  state.draftMode = "lessons";
   saveState();
   renderStudio();
 }
@@ -768,7 +776,10 @@ function deleteCourse(id) {
   const ok = confirm(`"${course.title}" kursu silinsin mi?`);
   if (!ok) return;
   state.courses = state.courses.filter((item) => item.id !== id);
-  if (state.draft?.id === id) state.draft = createEmptyCourse();
+  if (state.draft?.id === id || state.draft?._originalId === id) {
+    state.draft = createEmptyCourse();
+    state.draftMode = "info";
+  }
   saveState();
   toast("Kurs silindi. GitHub'a kaydet ile depoya yazabilirsin.");
   renderStudio();
@@ -794,9 +805,10 @@ function publishDraft() {
   else state.courses.unshift(published);
   state.draft = clone(published);
   state.draft._originalId = published.id;
+  state.draftMode = "lessons";
   saveState();
-  toast("Kurs yerel listeye eklendi. GitHub'a kaydet ile depoya yazabilirsin.");
-  location.hash = `#/course/${state.draft.id}?lesson=0`;
+  toast("Kurs canlıya alındı. Dersleri sağdan ekleyebilirsin.");
+  renderStudio();
 }
 
 function createEmptyCourse() {
@@ -899,7 +911,7 @@ async function renderAuthModal() {
       <div class="section-head">
         <div>
           <h2>GitHub Girişi</h2>
-          <p class="muted">Site tamamen statik olduğu için GitHub OAuth tarayıcıda çalışmaz; kısa bir erişim jetonuyla bağlanırsın. Bir kez oluşturup yapıştırman yeterli.</p>
+          <p class="muted">GitHub'da kısa bir erişim jetonu oluşturup yapıştırman yeterli.</p>
         </div>
         <button class="icon-button" id="closeAuth" type="button" aria-label="Kapat">×</button>
       </div>
@@ -910,19 +922,8 @@ async function renderAuthModal() {
       </div>
       <div class="actions">
         <button class="button" id="tokenLogin" type="button">Token ile bağlan</button>
-        <a class="button ghost" href="${TOKEN_URL}" target="_blank" rel="noreferrer">GitHub'da token oluştur</a>
+        <a class="button ghost" href="${TOKEN_URL}" target="_blank" rel="noreferrer">Token oluştur</a>
       </div>
-
-      <details class="auth-details" open>
-        <summary>Token nasıl oluşturulur? (1 dakika)</summary>
-        <ol class="auth-steps">
-          <li>"GitHub'da token oluştur" butonuna tıkla.</li>
-          <li>Sayfanın altındaki <strong>Generate token</strong> butonuna bas.</li>
-          <li>Oluşan token'ı kopyala ve yukarıdaki alana yapıştır.</li>
-          <li><strong>Token ile bağlan</strong>'a bas. İşlem biter.</li>
-        </ol>
-        <p class="muted small">Token yalnızca depo içeriğini (Contents) okumak ve yazmak için kullanılır; tarayıcında saklanır.</p>
-      </details>
     </div>
   `;
 
