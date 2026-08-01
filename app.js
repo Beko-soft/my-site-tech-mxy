@@ -1,12 +1,8 @@
 const STORE_KEY = "openlearn.state.v1";
 const THEME_KEY = "openlearn.theme";
-const OAUTH_CLIENT_ID_KEY = "openlearn.oauth.clientId";
-const OAUTH_CLIENT_ID = "Iv23li6UbcgKMImn3DLo";
-const OAUTH_MANIFEST_URL =
-  "https://github.com/settings/apps/new?name=OpenLearn-MXY&description=OpenLearn%20GitHub%20entegrasyonu&url=https%3A%2F%2Fmxydev.com%2F&callback_urls[]=https%3A%2F%2Fmxydev.com%2Foauth-callback.html&public=true&contents=write&metadata=read&webhook_active=false&webhook_url=https%3A%2F%2Fmxydev.com%2F&redirect_on_update=false";
+const TOKEN_URL =
+  "https://github.com/settings/tokens/new?scopes=repo&description=OpenLearn";
 const GITHUB_API = "https://api.github.com";
-const GITHUB_DEVICE = "https://github.com/login/device/code";
-const GITHUB_TOKEN = "https://github.com/login/oauth/access_token";
 const MAX_COURSES_PER_USER = 5;
 const MAX_LESSONS_PER_COURSE = 50;
 
@@ -124,7 +120,6 @@ function loadState() {
   const fallback = {
     auth: null,
     github: {
-      clientId: localStorage.getItem(OAUTH_CLIENT_ID_KEY) || OAUTH_CLIENT_ID,
       owner: "",
       repo: "openlearn-courses",
       branch: "main",
@@ -895,8 +890,6 @@ async function renderAuthModal() {
   }
 
   document.querySelector("#authModal")?.remove();
-  const clientId =
-    state.github.clientId || localStorage.getItem(OAUTH_CLIENT_ID_KEY) || OAUTH_CLIENT_ID;
 
   const overlay = document.createElement("div");
   overlay.className = "modal-overlay";
@@ -906,32 +899,29 @@ async function renderAuthModal() {
       <div class="section-head">
         <div>
           <h2>GitHub Girişi</h2>
-          <p class="muted">Sıfır sunucu: GitHub'da bir kez onayla, işlem biter. Ayrı hesap açmaya gerek yok.</p>
+          <p class="muted">Site tamamen statik olduğu için GitHub OAuth tarayıcıda çalışmaz; kısa bir erişim jetonuyla bağlanırsın. Bir kez oluşturup yapıştırman yeterli.</p>
         </div>
         <button class="icon-button" id="closeAuth" type="button" aria-label="Kapat">×</button>
       </div>
 
-      <button class="button auth-start" id="deviceLogin" type="button">GitHub ile giriş</button>
-      <p class="muted small auth-hint" id="deviceStatus">${clientId ? "GitHub cihaz kodu ile tek tıkla bağlanırsın." : "Önce alttan bir kez kurulum yap."}</p>
+      <div class="field">
+        <label for="tokenInput">GitHub token</label>
+        <input id="tokenInput" type="password" placeholder="ghp_... veya github_pat_..." autocomplete="off" />
+      </div>
+      <div class="actions">
+        <button class="button" id="tokenLogin" type="button">Token ile bağlan</button>
+        <a class="button ghost" href="${TOKEN_URL}" target="_blank" rel="noreferrer">GitHub'da token oluştur</a>
+      </div>
 
-      <details class="auth-details" ${clientId ? "" : "open"}>
-        <summary>${clientId ? "Client ID değiştir / kurulum" : "İlk kurulum: GitHub App bağla (bir kez, 1 dakika)"}</summary>
-        <p class="muted small">Uygulama sıfır sunucu olduğu için GitHub tarafında küçük bir App gerekir. Aşağıdaki butona tıkla, GitHub'da onay ver; otomatik buraya geri döner ve Client ID kaydedilir.</p>
-        <div class="actions">
-          <a class="button ghost" href="${OAUTH_MANIFEST_URL}" target="_blank" rel="noreferrer">GitHub App kur</a>
-        </div>
-        <div class="field">
-          <label for="clientId">Client ID</label>
-          <input id="clientId" value="${escapeAttr(clientId)}" placeholder="örn. Iv1.xxxxx" />
-        </div>
-        <div class="field">
-          <label for="tokenInput">veya fine-grained token (alternatif)</label>
-          <input id="tokenInput" type="password" placeholder="Contents okuma/yazma izni olan token" />
-        </div>
-        <div class="actions">
-          <button class="button subtle" id="saveClientId" type="button">Client ID'yi kaydet</button>
-          <button class="button ghost" id="tokenLogin" type="button">Token ile bağlan</button>
-        </div>
+      <details class="auth-details" open>
+        <summary>Token nasıl oluşturulur? (1 dakika)</summary>
+        <ol class="auth-steps">
+          <li>"GitHub'da token oluştur" butonuna tıkla.</li>
+          <li>Sayfanın altındaki <strong>Generate token</strong> butonuna bas.</li>
+          <li>Oluşan token'ı kopyala ve yukarıdaki alana yapıştır.</li>
+          <li><strong>Token ile bağlan</strong>'a bas. İşlem biter.</li>
+        </ol>
+        <p class="muted small">Token yalnızca depo içeriğini (Contents) okumak ve yazmak için kullanılır; tarayıcında saklanır.</p>
       </details>
     </div>
   `;
@@ -945,79 +935,13 @@ async function renderAuthModal() {
     if (event.key === "Escape") overlay.remove();
   });
   document.querySelector("#closeAuth").addEventListener("click", () => overlay.remove());
-  document.querySelector("#deviceLogin").addEventListener("click", loginWithDeviceFlow);
   document.querySelector("#tokenLogin").addEventListener("click", loginWithToken);
-  document.querySelector("#saveClientId").addEventListener("click", () => {
-    const value = document.querySelector("#clientId").value.trim();
-    if (!value) return toast("Client ID boş olamaz.");
-    state.github.clientId = value;
-    localStorage.setItem(OAUTH_CLIENT_ID_KEY, value);
-    saveState();
-    toast("Client ID kaydedildi. Artık tek tıkla giriş yapabilirsin.");
-    renderAuthModal();
-  });
 }
 
 async function loginWithToken() {
   const token = document.querySelector("#tokenInput").value.trim();
   if (!token) return toast("Token alanı boş.");
   await completeLogin(token);
-}
-
-async function loginWithDeviceFlow() {
-  const clientId = document.querySelector("#clientId").value.trim();
-  const status = document.querySelector("#deviceStatus");
-  if (!clientId) {
-    toast("Önce Client ID gir veya \"GitHub App kur\" butonuyla kur.");
-    const details = document.querySelector(".auth-details");
-    if (details) details.open = true;
-    return;
-  }
-
-  state.github.clientId = clientId;
-  localStorage.setItem(OAUTH_CLIENT_ID_KEY, clientId);
-  saveState();
-  status.textContent = "GitHub cihaz kodu alınıyor...";
-
-  try {
-    const device = await postForm(GITHUB_DEVICE, {
-      client_id: clientId,
-      scope: "repo user:email",
-    });
-
-    status.innerHTML = `Aç: <a href="${escapeAttr(device.verification_uri)}" target="_blank" rel="noreferrer">github.com/login/device</a> → kodu gir: <strong style="font-size:20px;letter-spacing:2px;font-family:var(--mono)">${escapeHtml(device.user_code)}</strong> → <strong>Authorize</strong> de, otomatik bağlanırsın.`;
-
-    const token = await pollForToken(clientId, device);
-    await completeLogin(token);
-    document.querySelector("#authModal")?.remove();
-  } catch (error) {
-    toast(error.message || "GitHub girişi tamamlanamadı.");
-  }
-}
-
-async function pollForToken(clientId, device) {
-  const started = Date.now();
-  const expiresMs = Number(device.expires_in || 900) * 1000;
-  let interval = Number(device.interval || 5) * 1000;
-
-  while (Date.now() - started < expiresMs) {
-    await wait(interval);
-    const response = await postForm(GITHUB_TOKEN, {
-      client_id: clientId,
-      device_code: device.device_code,
-      grant_type: "urn:ietf:params:oauth:grant-type:device_code",
-    });
-
-    if (response.access_token) return response.access_token;
-    if (response.error === "authorization_pending") continue;
-    if (response.error === "slow_down") {
-      interval += 5000;
-      continue;
-    }
-    throw new Error(response.error_description || response.error || "OAuth hatası");
-  }
-
-  throw new Error("GitHub onay süresi doldu.");
 }
 
 async function completeLogin(token) {
@@ -1113,24 +1037,6 @@ async function githubRequest(path, options = {}) {
   }
 
   return response.json();
-}
-
-async function postForm(url, data) {
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: new URLSearchParams(data),
-  });
-
-  if (!response.ok) throw new Error(`GitHub OAuth ${response.status}`);
-  return response.json();
-}
-
-function wait(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function renderMarkdown(text) {
