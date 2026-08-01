@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OpenLearn · GitHub Kurulumu</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="shell" style="max-width: 620px">
+      <section class="panel" style="padding: 28px; margin-top: 72px">
+        <div class="section-head">
+          <div>
+            <h2>OpenLearn · GitHub Kurulumu</h2>
+            <p class="muted">GitHub App oluşturuluyor...</p>
+          </div>
+        </div>
+        <p id="status" class="muted">Kurulum tamamlanıyor, lütfen bekleyin.</p>
+        <div class="actions">
+          <a id="done" class="button hidden" href="#/">Uygulamaya dön ve GitHub ile giriş yap</a>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      (async () => {
+        const code = new URLSearchParams(location.search).get("code");
+        const status = document.querySelector("#status");
+        const done = document.querySelector("#done");
+
+        if (!code) {
+          status.textContent = "Geçersiz kurulum linki. Uygulamadaki \"GitHub App kur\" butonunu kullan.";
+          return;
+        }
+
+        try {
+          const res = await fetch(
+            `https://api.github.com/app-manifests/${encodeURIComponent(code)}`,
+            { headers: { Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" } },
+          );
+          if (!res.ok) throw new Error("GitHub kurulumu tamamlanamadı.");
+          const data = await res.json();
+          localStorage.setItem("openlearn.oauth.clientId", data.client_id);
+          status.innerHTML =
+            'Kurulum başarılı! Client ID kaydedildi: <strong>' +
+            data.client_id +
+            '</strong><br>Artık ana sayfada "GitHub ile giriş" ile tek tıkla bağlanabilirsin.';
+          done.classList.remove("hidden");
+        } catch (err) {
+          status.textContent = "Hata: " + (err.message || "Bilinmeyen hata.");
+        }
+      })();
+    </script>
+  </body>
+</html>

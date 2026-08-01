@@ -1,5 +1,8 @@
 const STORE_KEY = "openlearn.state.v1";
 const THEME_KEY = "openlearn.theme";
+const OAUTH_CLIENT_ID_KEY = "openlearn.oauth.clientId";
+const OAUTH_MANIFEST_URL =
+  "https://github.com/settings/apps/new?name=OpenLearn-MXY&manifest=eyJuYW1lIjoiT3BlbkxlYXJuLU1YWSIsInVybCI6Imh0dHBzOi8vbXh5ZGV2LmNvbS8iLCJwdWJsaWMiOnRydWUsInJlZGlyZWN0X3VybCI6Imh0dHBzOi8vbXh5ZGV2LmNvbS9vYXV0aC1jYWxsYmFjay5odG1sIiwiaG9va19hdHRyaWJ1dGVzIjp7InVybCI6Imh0dHBzOi8vbXh5ZGV2LmNvbS8iLCJhY3RpdmUiOmZhbHNlfSwiZGVmYXVsdF9wZXJtaXNzaW9ucyI6eyJjb250ZW50cyI6IndyaXRlIiwibWV0YWRhdGEiOiJyZWFkIn0sImRlZmF1bHRfZXZlbnRzIjpbXX0";
 const GITHUB_API = "https://api.github.com";
 const GITHUB_DEVICE = "https://github.com/login/device/code";
 const GITHUB_TOKEN = "https://github.com/login/oauth/access_token";
@@ -120,7 +123,7 @@ function loadState() {
   const fallback = {
     auth: null,
     github: {
-      clientId: "",
+      clientId: localStorage.getItem(OAUTH_CLIENT_ID_KEY) || "",
       owner: "",
       repo: "openlearn-courses",
       branch: "main",
@@ -276,6 +279,34 @@ function renderCourse(id, lessonIndex) {
     return;
   }
 
+  if (!course.lessons.length) {
+    app.innerHTML = `
+      <section class="lesson-layout">
+        <aside class="lesson-nav">
+          <a class="active" href="#/course/${encodeURIComponent(course.id)}?lesson=0">
+            <span class="lesson-index">0</span>
+            <span>Boş kurs</span>
+          </a>
+        </aside>
+        <article class="lesson-main">
+          ${renderCoursePreviewHero(course)}
+          <div class="meta-row">
+            <span class="pill">${escapeHtml(course.level || "Genel")}</span>
+            <span class="muted small">${escapeHtml(course.title)}</span>
+          </div>
+          <h1>Bu kursta henüz ders yok</h1>
+          <p>${escapeHtml(course.description)}</p>
+          <div class="empty">Kurs oluşturuldu. Studio'dan "Ders ekle" butonuyla içerik ekleyebilirsin.</div>
+          <div class="lesson-actions">
+            <a class="button" href="#/studio">Studio'da düzenle</a>
+            <a class="button subtle" href="#/">Kurslara dön</a>
+          </div>
+        </article>
+      </section>
+    `;
+    return;
+  }
+
   const safeIndex = Math.max(0, Math.min(lessonIndex, course.lessons.length - 1));
   const lesson = course.lessons[safeIndex];
 
@@ -390,55 +421,61 @@ function renderStudio() {
 
   app.innerHTML = `
     <section class="studio-grid">
-      <aside class="panel">
-        <h2>GitHub Deposu</h2>
-        <p class="muted">Kurslar tek bir JSON dosyası olarak repo içinde saklanır.</p>
-        <div class="auth-grid">
-          <div class="field">
-            <label for="owner">Owner</label>
-            <input id="owner" value="${escapeAttr(state.github.owner)}" placeholder="kullanici veya org" />
+      <aside class="panel studio-side">
+        <div class="studio-side-block">
+          <div class="section-head compact">
+            <h2>GitHub Deposu</h2>
           </div>
-          <div class="field">
-            <label for="repo">Repo</label>
-            <input id="repo" value="${escapeAttr(state.github.repo)}" />
+          <p class="muted small">Kurslar tek bir JSON dosyası olarak repo içinde saklanır.</p>
+          <div class="auth-grid">
+            <div class="field">
+              <label for="owner">Owner</label>
+              <input id="owner" value="${escapeAttr(state.github.owner)}" placeholder="kullanici veya org" />
+            </div>
+            <div class="field">
+              <label for="repo">Repo</label>
+              <input id="repo" value="${escapeAttr(state.github.repo)}" />
+            </div>
           </div>
+          <div class="auth-grid">
+            <div class="field">
+              <label for="branch">Branch</label>
+              <input id="branch" value="${escapeAttr(state.github.branch)}" />
+            </div>
+            <div class="field">
+              <label for="path">Dosya</label>
+              <input id="path" value="${escapeAttr(state.github.path)}" />
+            </div>
+          </div>
+          <div class="actions">
+            <button class="button ghost" id="pullCourses" type="button">Çek</button>
+            <button class="button" id="pushCourses" type="button">Kaydet</button>
+          </div>
+          <ul class="status-list">
+            <li><span>Oturum</span><strong>${state.auth?.login ? `@${escapeHtml(state.auth.login)}` : "Yok"}</strong></li>
+            <li><span>Benim kurslarım</span><strong>${ownedCourses.length}/${MAX_COURSES_PER_USER}</strong></li>
+            <li><span>Depolama</span><strong>GitHub JSON</strong></li>
+          </ul>
         </div>
-        <div class="auth-grid">
-          <div class="field">
-            <label for="branch">Branch</label>
-            <input id="branch" value="${escapeAttr(state.github.branch)}" />
-          </div>
-          <div class="field">
-            <label for="path">Dosya</label>
-            <input id="path" value="${escapeAttr(state.github.path)}" />
-          </div>
-        </div>
-        <div class="actions">
-          <button class="button" id="pullCourses" type="button">GitHub'dan çek</button>
-          <button class="button ghost" id="pushCourses" type="button">GitHub'a kaydet</button>
-        </div>
-        <ul class="status-list">
-          <li><span>Oturum</span><strong>${state.auth?.login ? `@${escapeHtml(state.auth.login)}` : "Yok"}</strong></li>
-          <li><span>Benim kurslarım</span><strong>${ownedCourses.length}/${MAX_COURSES_PER_USER}</strong></li>
-          <li><span>Depolama</span><strong>GitHub JSON</strong></li>
-        </ul>
 
-        <div class="section-head compact">
-          <h2>Kurslarım</h2>
-          <span class="muted small">${state.auth?.login ? "Sil / düzenle" : "Giriş gerekli"}</span>
-        </div>
-        <div class="manage-list">
-          ${renderManagedCourses(ownedCourses)}
+        <div class="studio-side-block">
+          <div class="section-head compact">
+            <h2>Kurslarım</h2>
+            <span class="muted small">${state.auth?.login ? "Düzenle / sil" : "Giriş gerekli"}</span>
+          </div>
+          <div class="manage-list">
+            ${renderManagedCourses(ownedCourses)}
+          </div>
         </div>
       </aside>
 
-      <section class="panel">
+      <section class="panel studio-main">
         <div class="section-head">
           <div>
             <h2>Kurs Düzenleyici</h2>
-            <p class="muted">Kullanıcı başına 5 kurs, kurs başına 50 ders.</p>
+            <p class="muted">Önce kurs bilgilerini gir; dersleri istediğin gibi ekle. Dersler isteğe bağlıdır.</p>
           </div>
-          <button class="button subtle" id="newDraft" type="button" ${canCreate ? "" : "disabled"}>Yeni</button>
+          <button class="button subtle" id="newDraft" type="button" ${canCreate ? "" : "disabled"}>Yeni kurs</button>
         </div>
 
         ${renderDraftPreview(course)}
@@ -446,7 +483,7 @@ function renderStudio() {
         <div class="split">
           <div class="field">
             <label for="title">Kurs adı</label>
-            <input id="title" value="${escapeAttr(course.title)}" />
+            <input id="title" value="${escapeAttr(course.title)}" placeholder="Örnek: React'e Giriş" />
           </div>
           <div class="field">
             <label for="level">Seviye</label>
@@ -470,18 +507,18 @@ function renderStudio() {
           </div>
         </div>
 
-        <div class="section-head">
+        <div class="section-head lessons-head">
           <div>
             <h2>Dersler</h2>
             <p class="muted">${course.lessons.length}/${MAX_LESSONS_PER_COURSE} ders</p>
           </div>
-          <button class="button ghost" id="addLesson" type="button" ${canAddLesson ? "" : "disabled"}>Ders ekle</button>
+          <button class="button ghost" id="addLesson" type="button" ${canAddLesson ? "" : "disabled"}>+ Ders ekle</button>
         </div>
         <div id="lessonEditors"></div>
 
-        <div class="actions">
+        <div class="actions editor-actions">
           <button class="button" id="saveDraft" type="button">Yerel kaydet</button>
-          <button class="button ghost" id="publishDraft" type="button">Listeye ekle</button>
+          <button class="button ghost" id="publishDraft" type="button">Listeye ekle / yayınla</button>
           <button class="button danger" id="deleteDraft" type="button">Bu kursu sil</button>
         </div>
       </section>
@@ -609,17 +646,23 @@ function bindStudio() {
 
 function paintLessonEditors() {
   const holder = document.querySelector("#lessonEditors");
+
+  if (!state.draft.lessons.length) {
+    holder.innerHTML = `<div class="empty compact-empty">Henüz ders yok. Dersler isteğe bağlıdır — "Ders ekle" ile başla ya da kursu olduğu gibi yayınla.</div>`;
+    return;
+  }
+
   holder.innerHTML = state.draft.lessons
     .map(
       (lesson, index) => `
         <div class="lesson-editor" data-lesson-editor="${index}">
-          <div class="lesson-editor-row">
+          <div class="lesson-editor-head">
             <span class="lesson-index">${index + 1}</span>
             <div class="field">
               <label>Ders başlığı</label>
-              <input data-field="title" value="${escapeAttr(lesson.title)}" />
+              <input data-field="title" value="${escapeAttr(lesson.title)}" placeholder="Ders ${index + 1}" />
             </div>
-            <button class="button danger" type="button" data-remove="${index}">Sil</button>
+            <button class="button danger small" type="button" data-remove="${index}">Sil</button>
           </div>
           <div class="split">
             <div class="field">
@@ -639,19 +682,25 @@ function paintLessonEditors() {
           </div>
           <div class="field">
             <label>Ders içeriği Markdown</label>
-            <textarea class="markdown-input" data-field="body">${escapeHtml(lesson.body)}</textarea>
+            <textarea class="markdown-input" data-field="body" placeholder="## Ders hedefi&#10;&#10;Markdown destekli içerik. Başlık, liste, link ve kod ekleyebilirsin.">${escapeHtml(lesson.body)}</textarea>
           </div>
-          <div class="field">
-            <label>Quiz sorusu</label>
-            <input data-field="quiz.question" value="${escapeAttr(lesson.quiz.question)}" />
-          </div>
-          <div class="field">
-            <label>Quiz seçenekleri, satır satır</label>
-            <textarea data-field="quiz.options">${escapeHtml(lesson.quiz.options.join("\n"))}</textarea>
-          </div>
-          <div class="field">
-            <label>Doğru cevap numarası</label>
-            <input data-field="quiz.answer" type="number" min="1" value="${Number(lesson.quiz.answer) + 1}" />
+          <div class="quiz-fields">
+            <div class="quiz-fields-head">
+              <span class="pill">Quiz</span>
+              <span class="muted small">İsteğe bağlı</span>
+            </div>
+            <div class="field">
+              <label>Quiz sorusu</label>
+              <input data-field="quiz.question" value="${escapeAttr(lesson.quiz.question)}" />
+            </div>
+            <div class="field">
+              <label>Seçenekler, satır satır</label>
+              <textarea data-field="quiz.options">${escapeHtml(lesson.quiz.options.join("\n"))}</textarea>
+            </div>
+            <div class="field">
+              <label>Doğru cevap numarası</label>
+              <input data-field="quiz.answer" type="number" min="1" value="${Number(lesson.quiz.answer) + 1}" />
+            </div>
           </div>
         </div>
       `,
@@ -660,7 +709,6 @@ function paintLessonEditors() {
 
   holder.querySelectorAll("[data-remove]").forEach((button) => {
     button.addEventListener("click", () => {
-      if (state.draft.lessons.length <= 1) return toast("En az bir ders kalmalı.");
       state.draft.lessons.splice(Number(button.dataset.remove), 1);
       normalizeLessonTitles(state.draft);
       saveState();
@@ -765,7 +813,7 @@ function createEmptyCourse() {
     level: "Başlangıç",
     owner: state.auth?.login || "local",
     updatedAt: new Date().toISOString().slice(0, 10),
-    lessons: [createEmptyLesson(1), createEmptyLesson(2)],
+    lessons: [],
   });
 }
 
@@ -775,9 +823,9 @@ function createEmptyLesson(number) {
     mediaType: "none",
     mediaUrl: "",
     embedHtml: "",
-    body: "## Ders hedefi\n\nDers içeriğini buraya yazın.\n\n- Kısa not\n- Uygulama adımı\n\n[Harici kaynak](https://example.com)",
+    body: "",
     quiz: {
-      question: "Bu dersten ana çıkarım nedir?",
+      question: "",
       options: ["Doğru seçenek", "Diğer seçenek", "Başka seçenek"],
       answer: 0,
     },
@@ -792,10 +840,7 @@ function normalizeState(nextState) {
 
 function normalizeCourse(course = {}) {
   const title = course.title || "Adsız kurs";
-  const lessons =
-    Array.isArray(course.lessons) && course.lessons.length
-      ? course.lessons
-      : [normalizeLesson({ title: "Ders 1" })];
+  const lessons = Array.isArray(course.lessons) ? course.lessons : [];
 
   return {
     id: course.id || slugify(title),
@@ -848,42 +893,67 @@ async function renderAuthModal() {
     return;
   }
 
-  document.querySelector("#authPanel")?.remove();
-  app.insertAdjacentHTML(
-    "afterbegin",
-    `
-      <section class="panel" id="authPanel">
-        <div class="section-head">
-          <div>
-            <h2>GitHub Girişi</h2>
-            <p class="muted">Sıfır sunucu için GitHub Device Flow kullanılır. OAuth app yoksa fine-grained token da kabul edilir.</p>
-          </div>
-          <button class="icon-button" id="closeAuth" type="button" aria-label="Kapat">×</button>
+  document.querySelector("#authModal")?.remove();
+  const clientId = state.github.clientId || localStorage.getItem(OAUTH_CLIENT_ID_KEY) || "";
+
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.id = "authModal";
+  overlay.innerHTML = `
+    <div class="modal" role="dialog" aria-modal="true" aria-label="GitHub girişi">
+      <div class="section-head">
+        <div>
+          <h2>GitHub Girişi</h2>
+          <p class="muted">Sıfır sunucu: GitHub'da bir kez onayla, işlem biter. Ayrı hesap açmaya gerek yok.</p>
         </div>
-        <div class="auth-grid">
-          <div class="field">
-            <label for="clientId">GitHub OAuth Client ID</label>
-            <input id="clientId" value="${escapeAttr(state.github.clientId)}" placeholder="Device Flow açık OAuth app" />
-          </div>
-          <div class="field">
-            <label for="tokenInput">Alternatif token</label>
-            <input id="tokenInput" type="password" placeholder="repo contents izni olan token" />
-          </div>
+        <button class="icon-button" id="closeAuth" type="button" aria-label="Kapat">×</button>
+      </div>
+
+      <button class="button auth-start" id="deviceLogin" type="button">GitHub ile giriş</button>
+      <p class="muted small auth-hint" id="deviceStatus">${clientId ? "GitHub cihaz kodu ile tek tıkla bağlanırsın." : "Önce alttan bir kez kurulum yap."}</p>
+
+      <details class="auth-details" ${clientId ? "" : "open"}>
+        <summary>${clientId ? "Client ID değiştir / kurulum" : "İlk kurulum: GitHub App bağla (bir kez, 1 dakika)"}</summary>
+        <p class="muted small">Uygulama sıfır sunucu olduğu için GitHub tarafında küçük bir App gerekir. Aşağıdaki butona tıkla, GitHub'da onay ver; otomatik buraya geri döner ve Client ID kaydedilir.</p>
+        <div class="actions">
+          <a class="button ghost" href="${OAUTH_MANIFEST_URL}" target="_blank" rel="noreferrer">GitHub App kur</a>
+        </div>
+        <div class="field">
+          <label for="clientId">Client ID</label>
+          <input id="clientId" value="${escapeAttr(clientId)}" placeholder="örn. Iv1.xxxxx" />
+        </div>
+        <div class="field">
+          <label for="tokenInput">veya fine-grained token (alternatif)</label>
+          <input id="tokenInput" type="password" placeholder="Contents okuma/yazma izni olan token" />
         </div>
         <div class="actions">
-          <button class="button" id="deviceLogin" type="button">Device Flow başlat</button>
+          <button class="button subtle" id="saveClientId" type="button">Client ID'yi kaydet</button>
           <button class="button ghost" id="tokenLogin" type="button">Token ile bağlan</button>
         </div>
-        <p class="muted" id="deviceStatus"></p>
-      </section>
-    `,
-  );
+      </details>
+    </div>
+  `;
 
-  document.querySelector("#closeAuth").addEventListener("click", () => {
-    document.querySelector("#authPanel").remove();
+  document.body.append(overlay);
+
+  overlay.addEventListener("click", (event) => {
+    if (event.target === overlay) overlay.remove();
   });
-  document.querySelector("#tokenLogin").addEventListener("click", loginWithToken);
+  overlay.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") overlay.remove();
+  });
+  document.querySelector("#closeAuth").addEventListener("click", () => overlay.remove());
   document.querySelector("#deviceLogin").addEventListener("click", loginWithDeviceFlow);
+  document.querySelector("#tokenLogin").addEventListener("click", loginWithToken);
+  document.querySelector("#saveClientId").addEventListener("click", () => {
+    const value = document.querySelector("#clientId").value.trim();
+    if (!value) return toast("Client ID boş olamaz.");
+    state.github.clientId = value;
+    localStorage.setItem(OAUTH_CLIENT_ID_KEY, value);
+    saveState();
+    toast("Client ID kaydedildi. Artık tek tıkla giriş yapabilirsin.");
+    renderAuthModal();
+  });
 }
 
 async function loginWithToken() {
@@ -895,9 +965,15 @@ async function loginWithToken() {
 async function loginWithDeviceFlow() {
   const clientId = document.querySelector("#clientId").value.trim();
   const status = document.querySelector("#deviceStatus");
-  if (!clientId) return toast("Client ID gerekli.");
+  if (!clientId) {
+    toast("Önce Client ID gir veya \"GitHub App kur\" butonuyla kur.");
+    const details = document.querySelector(".auth-details");
+    if (details) details.open = true;
+    return;
+  }
 
   state.github.clientId = clientId;
+  localStorage.setItem(OAUTH_CLIENT_ID_KEY, clientId);
   saveState();
   status.textContent = "GitHub cihaz kodu alınıyor...";
 
@@ -911,7 +987,7 @@ async function loginWithDeviceFlow() {
 
     const token = await pollForToken(clientId, device);
     await completeLogin(token);
-    document.querySelector("#authPanel")?.remove();
+    document.querySelector("#authModal")?.remove();
   } catch (error) {
     toast(error.message || "GitHub girişi tamamlanamadı.");
   }
