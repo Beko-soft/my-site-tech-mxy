@@ -985,7 +985,7 @@ async function loginWithDeviceFlow() {
       scope: "repo user:email",
     });
 
-    status.innerHTML = `Kod: <strong>${escapeHtml(device.user_code)}</strong> · <a href="${escapeAttr(device.verification_uri)}" target="_blank" rel="noreferrer">GitHub'da onayla</a>`;
+    status.innerHTML = `Aç: <a href="${escapeAttr(device.verification_uri)}" target="_blank" rel="noreferrer">github.com/login/device</a> → kodu gir: <strong style="font-size:20px;letter-spacing:2px;font-family:var(--mono)">${escapeHtml(device.user_code)}</strong> → <strong>Authorize</strong> de, otomatik bağlanırsın.`;
 
     const token = await pollForToken(clientId, device);
     await completeLogin(token);
