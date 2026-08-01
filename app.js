@@ -1,6 +1,7 @@
 const STORE_KEY = "openlearn.state.v1";
 const THEME_KEY = "openlearn.theme";
 const OAUTH_CLIENT_ID_KEY = "openlearn.oauth.clientId";
+const OAUTH_CLIENT_ID = "Iv23li6UbcgKMImn3DLo";
 const OAUTH_MANIFEST_URL =
   "https://github.com/settings/apps/new?name=OpenLearn-MXY&description=OpenLearn%20GitHub%20entegrasyonu&url=https%3A%2F%2Fmxydev.com%2F&callback_urls[]=https%3A%2F%2Fmxydev.com%2Foauth-callback.html&public=true&contents=write&metadata=read&webhook_active=false&webhook_url=https%3A%2F%2Fmxydev.com%2F&redirect_on_update=false";
 const GITHUB_API = "https://api.github.com";
@@ -123,7 +124,7 @@ function loadState() {
   const fallback = {
     auth: null,
     github: {
-      clientId: localStorage.getItem(OAUTH_CLIENT_ID_KEY) || "",
+      clientId: localStorage.getItem(OAUTH_CLIENT_ID_KEY) || OAUTH_CLIENT_ID,
       owner: "",
       repo: "openlearn-courses",
       branch: "main",
@@ -894,7 +895,8 @@ async function renderAuthModal() {
   }
 
   document.querySelector("#authModal")?.remove();
-  const clientId = state.github.clientId || localStorage.getItem(OAUTH_CLIENT_ID_KEY) || "";
+  const clientId =
+    state.github.clientId || localStorage.getItem(OAUTH_CLIENT_ID_KEY) || OAUTH_CLIENT_ID;
 
   const overlay = document.createElement("div");
   overlay.className = "modal-overlay";
