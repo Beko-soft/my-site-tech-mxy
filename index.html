@@ -23,11 +23,29 @@
           <button class="icon-button" id="themeToggle" type="button" aria-label="Tema değiştir" title="Tema">
             ◐
           </button>
-          <button class="button ghost" id="authButton" type="button">GitHub ile giriş</button>
+          <div class="account-menu">
+            <button class="button ghost auth-button" id="authButton" type="button" aria-haspopup="menu" aria-expanded="false">
+              <img class="auth-avatar" id="authAvatar" alt="" hidden />
+              <span id="authLabel">GitHub ile giriş</span>
+              <span class="caret" id="authCaret" hidden>▾</span>
+            </button>
+            <div class="account-popover" id="accountPopover" role="menu" hidden>
+              <div class="account-head">
+                <img class="auth-avatar" id="menuAvatar" alt="" />
+                <div class="account-meta">
+                  <strong id="menuLogin"></strong>
+                  <span class="muted small">GitHub ile bağlı</span>
+                </div>
+              </div>
+              <button class="account-item danger" id="logoutBtn" type="button" role="menuitem">Oturumu kapat</button>
+            </div>
+          </div>
         </nav>
       </header>
 
       <main id="app" tabindex="-1"></main>
+
+      <div id="comments" class="comments-container" aria-label="Kurs tartışması"></div>
     </div>
 
     <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="true"></div>

@@ -5,104 +5,18 @@ const TOKEN_URL =
 const GITHUB_API = "https://api.github.com";
 const MAX_COURSES_PER_USER = 5;
 const MAX_LESSONS_PER_COURSE = 50;
-
-const sampleCourses = [
-  {
-    id: "github-ile-portfolyo",
-    title: "GitHub ile Portfolyo",
-    description:
-      "Fork, commit, branch ve pull request akışını kısa etkileşimlerle öğrenin.",
-    bannerUrl:
-      "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?auto=format&fit=crop&w=1200&q=80",
-    logoUrl: "",
-    level: "Başlangıç",
-    owner: "openlearn",
-    updatedAt: "2026-07-22",
-    external: false,
-    lessons: [
-      {
-        title: "Ders 1: Repository Mantığı",
-        mediaType: "video",
-        mediaUrl: "https://www.youtube.com/embed/RGOj5yH7evk",
-        body:
-          "Repository bir proje klasörü ve geçmiş defteridir. Her commit, öğrenme yolculuğundaki küçük ve geri alınabilir bir kayıttır.\n\nBu derste ana hedef: yeni bir repo açmak, README yazmak ve ilk commit'i göndermek.",
-        quiz: {
-          question: "Commit neyi temsil eder?",
-          options: [
-            "Projedeki bir değişiklik kaydını",
-            "Sadece GitHub profil fotoğrafını",
-            "Silinmiş dosyaları kalıcı yok etmeyi",
-          ],
-          answer: 0,
-        },
-      },
-      {
-        title: "Ders 2: Pull Request",
-        mediaType: "url",
-        mediaUrl: "https://docs.github.com/en/pull-requests",
-        body:
-          "Pull request, bir değişikliği tartışmaya ve gözden geçirmeye açar. Kurs üretirken de aynı yaklaşım işe yarar: içerik küçük parçalara ayrılır, sonra birlikte iyileştirilir.",
-        quiz: {
-          question: "Pull request ne zaman kullanılır?",
-          options: [
-            "Değişiklikleri inceletmek ve birleştirmek için",
-            "Sadece video yüklemek için",
-            "Şifre değiştirmek için",
-          ],
-          answer: 0,
-        },
-      },
-    ],
-  },
-  {
-    id: "javascript-temelleri",
-    title: "JavaScript Temelleri",
-    description:
-      "Değişkenler, fonksiyonlar ve DOM ile küçük tarayıcı deneyleri yapın.",
-    bannerUrl:
-      "https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1200&q=80",
-    logoUrl: "",
-    level: "Orta",
-    owner: "openlearn",
-    updatedAt: "2026-07-18",
-    external: false,
-    lessons: [
-      {
-        title: "Ders 1: Değerler",
-        mediaType: "none",
-        mediaUrl: "",
-        body:
-          "JavaScript'te değerler string, number, boolean, object ve daha fazlası olabilir. Küçük örneklerle başlayıp ekranda sonucu görmeye odaklanın.",
-        quiz: {
-          question: "Hangi ifade bir string değeridir?",
-          options: ["\"OpenLearn\"", "42", "true"],
-          answer: 0,
-        },
-      },
-      {
-        title: "Ders 2: Fonksiyonlar",
-        mediaType: "none",
-        mediaUrl: "",
-        body:
-          "Fonksiyonlar, tekrar eden davranışları isimlendirme yoludur. Parametre alabilir, değer döndürebilir ve kullanıcı etkileşimlerine bağlanabilir.",
-        quiz: {
-          question: "Fonksiyonların temel yararı nedir?",
-          options: [
-            "Tekrar eden davranışı yeniden kullanmak",
-            "CSS dosyalarını silmek",
-            "Tarayıcıyı kapatmak",
-          ],
-          answer: 0,
-        },
-      },
-    ],
-  },
-];
+const GISCUS_REPO = "Beko-soft/my-site-tech-mxy";
+const GISCUS_REPO_ID = "R_kgDOStJeeg";
+const GISCUS_CATEGORY = "General";
+const GISCUS_CATEGORY_ID = "DIC_kwDOStJees4DCdgR";
+const GISCUS_THEME_LIGHT = "https://mxydev.com/giscus-light.css";
+const GISCUS_THEME_DARK = "https://mxydev.com/giscus-dark.css";
 
 const state = loadState();
 const app = document.querySelector("#app");
 const authButton = document.querySelector("#authButton");
 const themeToggle = document.querySelector("#themeToggle");
+let currentGiscusCourse = null;
 
 init();
 
@@ -110,10 +24,22 @@ function init() {
   document.documentElement.dataset.theme =
     localStorage.getItem(THEME_KEY) || "light";
   themeToggle.addEventListener("click", toggleTheme);
-  authButton.addEventListener("click", () => renderAuthModal());
+  authButton.addEventListener("click", onAuthButtonClick);
+  document.querySelector("#logoutBtn").addEventListener("click", logout);
   window.addEventListener("hashchange", render);
+  document.addEventListener("click", (event) => {
+    const menu = document.querySelector("#accountMenu") || authButton.closest(".account-menu");
+    if (menu && !menu.contains(event.target)) closeAccountMenu();
+  });
   updateAuthButton();
   render();
+}
+
+function toggleTheme() {
+  const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  document.documentElement.dataset.theme = next;
+  localStorage.setItem(THEME_KEY, next);
+  syncGiscusTheme();
 }
 
 function loadState() {
@@ -125,7 +51,7 @@ function loadState() {
       branch: "main",
       path: "courses.json",
     },
-    courses: sampleCourses,
+    courses: [],
   };
 
   try {
@@ -174,12 +100,128 @@ function setActiveNav(key) {
 }
 
 function updateAuthButton() {
-  authButton.textContent = state.auth?.login
-    ? `@${state.auth.login}`
-    : "GitHub ile giriş";
+  const logged = Boolean(state.auth?.login);
+  const label = document.querySelector("#authLabel");
+  const avatar = document.querySelector("#authAvatar");
+  const caret = document.querySelector("#authCaret");
+  if (label) label.textContent = logged ? `@${state.auth.login}` : "GitHub ile giriş";
+  if (avatar) {
+    if (logged && state.auth.avatarUrl) {
+      avatar.hidden = false;
+      avatar.src = state.auth.avatarUrl;
+    } else {
+      avatar.hidden = true;
+      avatar.removeAttribute("src");
+    }
+  }
+  if (caret) caret.hidden = !logged;
+  if (!logged) closeAccountMenu();
+}
+
+function onAuthButtonClick() {
+  if (state.auth?.token) toggleAccountMenu();
+  else renderAuthModal();
+}
+
+function toggleAccountMenu() {
+  const popover = document.querySelector("#accountPopover");
+  const avatar = document.querySelector("#menuAvatar");
+  const login = document.querySelector("#menuLogin");
+  if (!popover) return;
+  if (popover.hidden) {
+    if (avatar) {
+      avatar.hidden = !state.auth?.avatarUrl;
+      if (state.auth?.avatarUrl) avatar.src = state.auth.avatarUrl;
+    }
+    if (login) login.textContent = `@${state.auth?.login || ""}`;
+    popover.hidden = false;
+    authButton.setAttribute("aria-expanded", "true");
+  } else {
+    closeAccountMenu();
+  }
+}
+
+function closeAccountMenu() {
+  const popover = document.querySelector("#accountPopover");
+  if (popover) popover.hidden = true;
+  authButton.setAttribute("aria-expanded", "false");
+}
+
+function logout() {
+  state.auth = null;
+  saveState();
+  updateAuthButton();
+  closeAccountMenu();
+  toast("GitHub oturumu kapatıldı.");
+}
+
+function giscusThemeUrl() {
+  return document.documentElement.dataset.theme === "dark"
+    ? GISCUS_THEME_DARK
+    : GISCUS_THEME_LIGHT;
+}
+
+function mountGiscus(courseId, courseTitle) {
+  const container = document.querySelector("#comments");
+  if (!container) return;
+  if (
+    currentGiscusCourse === courseId &&
+    container.querySelector("iframe.giscus-frame, .giscus")
+  ) {
+    syncGiscusTheme();
+    return;
+  }
+  currentGiscusCourse = courseId;
+  container.innerHTML = `
+    <section class="course-comments">
+      <div class="section-head comments-head">
+        <div>
+          <h2>Tartışma</h2>
+          <p class="muted">${escapeHtml(courseTitle)} hakkında yorum bırak. Yorumlar GitHub Discussions ile güçlendirilir.</p>
+        </div>
+      </div>
+      <div class="giscus"></div>
+    </section>
+  `;
+
+  const script = document.createElement("script");
+  script.src = "https://giscus.app/client.js";
+  script.dataset.repo = GISCUS_REPO;
+  script.dataset.repoId = GISCUS_REPO_ID;
+  script.dataset.category = GISCUS_CATEGORY;
+  script.dataset.categoryId = GISCUS_CATEGORY_ID;
+  script.dataset.mapping = "specific";
+  script.dataset.term = courseId;
+  script.dataset.strict = "0";
+  script.dataset.reactionsEnabled = "1";
+  script.dataset.emitMetadata = "0";
+  script.dataset.inputPosition = "top";
+  script.dataset.theme = giscusThemeUrl();
+  script.dataset.lang = "tr";
+  script.dataset.loading = "lazy";
+  script.crossOrigin = "anonymous";
+  script.async = true;
+  container.querySelector(".course-comments").appendChild(script);
+}
+
+function clearGiscus() {
+  currentGiscusCourse = null;
+  const container = document.querySelector("#comments");
+  if (container) container.innerHTML = "";
+}
+
+function syncGiscusTheme() {
+  const iframe = document.querySelector("#comments iframe.giscus-frame");
+  if (iframe?.contentWindow) {
+    iframe.contentWindow.postMessage(
+      { giscus: { setConfig: { theme: giscusThemeUrl() } } },
+      "https://giscus.app",
+    );
+  }
 }
 
 function renderHome() {
+  clearGiscus();
   app.innerHTML = `
     <section class="hero">
       <div class="hero-copy">
@@ -233,7 +275,9 @@ function paintCourseGrid() {
   grid.innerHTML = "";
 
   if (!courses.length) {
-    grid.innerHTML = `<div class="empty">Aramana uyan kurs bulunamadı.</div>`;
+    grid.innerHTML = state.courses.length
+      ? `<div class="empty">Aramana uyan kurs bulunamadı.</div>`
+      : `<div class="empty">Henüz kurs yok. <a class="button small" href="#/studio">Kurs oluştur</a> ile ilk kursu sen başlat.</div>`;
     return;
   }
 
@@ -262,6 +306,7 @@ function paintCourseGrid() {
 function renderCourse(id, lessonIndex) {
   const course = state.courses.find((item) => item.id === id);
   if (!course) {
+    clearGiscus();
     app.innerHTML = `<div class="empty">Kurs bulunamadı.</div>`;
     return;
   }
@@ -291,6 +336,7 @@ function renderCourse(id, lessonIndex) {
         </article>
       </section>
     `;
+    mountGiscus(course.id, course.title);
     return;
   }
 
@@ -336,6 +382,31 @@ function renderCourse(id, lessonIndex) {
   document.querySelectorAll("[data-answer]").forEach((button) => {
     button.addEventListener("click", () => checkAnswer(button));
   });
+
+  mountGiscus(course.id, course.title);
+}
+
+function detectMedia(url = "") {
+  const value = String(url).trim();
+  if (!value) return { type: "none" };
+
+  let match = value.match(/(?:youtube\.com\/(?:watch\?.*?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]+)/);
+  if (match) return { type: "video", embed: `https://www.youtube.com/embed/${match[1]}` };
+
+  match = value.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+  if (match) return { type: "video", embed: `https://player.vimeo.com/video/${match[1]}` };
+
+  match = value.match(/drive\.google\.com\/file\/d\/([\w-]+)/) || value.match(/drive\.google\.com\/open\?.*?id=([\w-]+)/);
+  if (match) return { type: "video", embed: `https://drive.google.com/file/d/${match[1]}/preview` };
+
+  if (/\.(png|jpe?g|gif|webp|avif|svg|bmp|ico)(\?|#|$)/i.test(value)) return { type: "image" };
+  if (/(^|\/)i?\.?imgur\.com\//i.test(value) && /\.(png|jpe?g|gif|webp|avif)(\?|#|$)/i.test(value)) return { type: "image" };
+
+  if (/\.(mp3|wav|ogg|m4a|aac|flac)(\?|#|$)/i.test(value)) return { type: "audio" };
+
+  if (/\.(mp4|webm|mov|ogv|m4v)(\?|#|$)/i.test(value)) return { type: "video", src: value };
+
+  return { type: "url" };
 }
 
 function renderMedia(lesson) {
@@ -343,22 +414,35 @@ function renderMedia(lesson) {
     return `<div class="media-frame embed-frame">${sanitizeEmbed(lesson.embedHtml)}</div>`;
   }
 
-  if (!lesson.mediaUrl || lesson.mediaType === "none") return "";
-  const url = escapeAttr(lesson.mediaUrl);
+  const url = String(lesson.mediaUrl || "").trim();
+  if (!url) return "";
 
-  if (lesson.mediaType === "video") {
-    return `<div class="media-frame"><iframe src="${url}" title="Ders videosu" allowfullscreen></iframe></div>`;
+  let detected = detectMedia(url);
+  if (detected.type === "url") {
+    if (lesson.mediaType === "video") detected = { type: "video", src: url };
+    else if (lesson.mediaType === "audio") detected = { type: "audio", src: url };
+    else if (lesson.mediaType === "image") detected = { type: "image", src: url };
   }
 
-  if (lesson.mediaType === "audio") {
-    return `<div class="media-frame"><audio src="${url}" controls></audio></div>`;
+  const safe = escapeAttr(url);
+  const frame = (inner) => `<div class="media-frame">${inner}</div>`;
+
+  if (detected.type === "video") {
+    if (detected.embed) {
+      return frame(`<iframe src="${escapeAttr(detected.embed)}" title="Ders videosu" allowfullscreen></iframe>`);
+    }
+    return frame(`<video src="${safe}" controls preload="metadata"></video>`);
   }
 
-  if (lesson.mediaType === "image") {
-    return `<figure class="image-frame"><img src="${url}" alt="" loading="lazy" /></figure>`;
+  if (detected.type === "audio") {
+    return frame(`<audio src="${safe}" controls preload="metadata"></audio>`);
   }
 
-  return `<p><a class="button ghost" href="${url}" target="_blank" rel="noreferrer">Harici materyali aç</a></p>`;
+  if (detected.type === "image") {
+    return `<figure class="image-frame"><img src="${safe}" alt="" loading="lazy" /></figure>`;
+  }
+
+  return `<p><a class="button ghost" href="${safe}" target="_blank" rel="noreferrer">Harici materyali aç</a></p>`;
 }
 
 function renderCoursePreviewHero(course) {
@@ -399,6 +483,7 @@ function checkAnswer(button) {
 }
 
 function renderStudio() {
+  clearGiscus();
   if (!state.draft) state.draft = createEmptyCourse();
   const course = state.draft;
   const live = isCourseLive(course);
@@ -655,20 +740,12 @@ function paintLessonEditors() {
             </div>
             <button class="button danger small" type="button" data-remove="${index}">Sil</button>
           </div>
-          <div class="split">
-            <div class="field">
-              <label>Medya tipi</label>
-              <select data-field="mediaType">
-                ${["none", "video", "image", "audio", "embed", "url"].map((type) => `<option value="${type}" ${lesson.mediaType === type ? "selected" : ""}>${type}</option>`).join("")}
-              </select>
-            </div>
-            <div class="field">
-              <label>Harici URL</label>
-              <input data-field="mediaUrl" value="${escapeAttr(lesson.mediaUrl)}" placeholder="https://..." />
-            </div>
+          <div class="field">
+            <label>Medya URL</label>
+            <input data-field="mediaUrl" value="${escapeAttr(lesson.mediaUrl)}" placeholder="https://... — YouTube, Vimeo, Drive, görsel, ses veya link otomatik algılanır" />
           </div>
           <div class="field">
-            <label>HTML embed</label>
+            <label>HTML embed <span class="muted small">(isteğe bağlı, diğer medyayı geçersiz kılar)</span></label>
             <textarea data-field="embedHtml" placeholder="<iframe ...></iframe>">${escapeHtml(lesson.embedHtml || "")}</textarea>
           </div>
           <div class="field">
@@ -841,7 +918,9 @@ function createEmptyLesson(number) {
 }
 
 function normalizeState(nextState) {
-  nextState.courses = (nextState.courses || []).map(normalizeCourse);
+  nextState.courses = (nextState.courses || [])
+    .map(normalizeCourse)
+    .filter((course) => course.owner !== "openlearn");
   if (nextState.draft) nextState.draft = normalizeCourse(nextState.draft);
   return nextState;
 }
@@ -893,14 +972,6 @@ function normalizeLessonTitles(course) {
 }
 
 async function renderAuthModal() {
-  if (state.auth?.token) {
-    state.auth = null;
-    saveState();
-    updateAuthButton();
-    toast("GitHub oturumu kapatıldı.");
-    return;
-  }
-
   document.querySelector("#authModal")?.remove();
 
   const overlay = document.createElement("div");
