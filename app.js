@@ -1,7 +1,8 @@
 const STORE_KEY = "openlearn.state.v1";
 const THEME_KEY = "openlearn.theme";
 const OAUTH_CLIENT_ID_KEY = "openlearn.oauth.clientId";
-const OAUTH_MANIFEST_URL = "https://mxydev.com/setup-github-app.html";
+const OAUTH_MANIFEST_URL =
+  "https://github.com/settings/apps/new?name=OpenLearn-MXY&description=OpenLearn%20GitHub%20entegrasyonu&url=https%3A%2F%2Fmxydev.com%2F&callback_urls[]=https%3A%2F%2Fmxydev.com%2Foauth-callback.html&public=true&contents=write&metadata=read&webhook_active=false&webhook_url=https%3A%2F%2Fmxydev.com%2F&redirect_on_update=false";
 const GITHUB_API = "https://api.github.com";
 const GITHUB_DEVICE = "https://github.com/login/device/code";
 const GITHUB_TOKEN = "https://github.com/login/oauth/access_token";

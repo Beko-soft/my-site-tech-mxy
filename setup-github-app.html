@@ -16,35 +16,18 @@
           </div>
         </div>
         <p class="muted small">
-          GitHub sayfasında ayarlar otomatik dolu gelecek. Sadece sayfanın altındaki
-          <strong>Create GitHub App</strong> butonuna tıklaman yeterli.
+          GitHub sayfasında ayarlar otomatik dolu gelecek. Sayfanın altındaki
+          <strong>Create GitHub App</strong> butonuna tıkla, sonra App sayfasındaki
+          <strong>Client ID</strong>'yi kopyala.
         </p>
       </section>
     </main>
 
-    <form id="manifestForm" method="post" action="https://github.com/settings/apps/new">
-      <input type="hidden" name="manifest" id="manifestInput" />
-    </form>
-
     <script>
-      const manifest = {
-        name: "OpenLearn-MXY",
-        url: "https://mxydev.com/",
-        public: true,
-        redirect_url: "https://mxydev.com/oauth-callback.html",
-        hook_attributes: {
-          url: "https://mxydev.com/",
-          active: false,
-        },
-        default_permissions: {
-          contents: "write",
-          metadata: "read",
-        },
-        default_events: [],
-      };
-      document.getElementById("manifestInput").value = JSON.stringify(manifest);
       setTimeout(function () {
-        document.getElementById("manifestForm").submit();
+        location.replace(
+          "https://github.com/settings/apps/new?name=OpenLearn-MXY&description=OpenLearn%20GitHub%20entegrasyonu&url=https%3A%2F%2Fmxydev.com%2F&callback_urls[]=https%3A%2F%2Fmxydev.com%2Foauth-callback.html&public=true&contents=write&metadata=read&webhook_active=false&webhook_url=https%3A%2F%2Fmxydev.com%2F&redirect_on_update=false"
+        );
       }, 900);
     </script>
   </body>
