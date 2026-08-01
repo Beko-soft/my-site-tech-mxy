@@ -1,0 +1,48 @@
+{
+  "courses": [
+    {
+      "id": "github-ile-portfolyo",
+      "title": "GitHub ile Portfolyo",
+      "description": "Fork, commit, branch ve pull request akışını kısa etkileşimlerle öğrenin.",
+      "bannerUrl": "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?auto=format&fit=crop&w=1200&q=80",
+      "logoUrl": "",
+      "level": "Başlangıç",
+      "owner": "openlearn",
+      "updatedAt": "2026-07-22",
+      "lessons": [
+        {
+          "title": "Ders 1: Repository Mantığı",
+          "mediaType": "video",
+          "mediaUrl": "https://www.youtube.com/embed/RGOj5yH7evk",
+          "embedHtml": "",
+          "body": "## Repository nedir?\n\nRepository bir proje klasörü ve geçmiş defteridir. Her commit, öğrenme yolculuğundaki küçük ve geri alınabilir bir kayıttır.\n\n- README yaz\n- İlk commit'i gönder\n- Değişiklik geçmişini incele",
+          "quiz": {
+            "question": "Commit neyi temsil eder?",
+            "options": [
+              "Projedeki bir değişiklik kaydını",
+              "Sadece GitHub profil fotoğrafını",
+              "Silinmiş dosyaları kalıcı yok etmeyi"
+            ],
+            "answer": 0
+          }
+        },
+        {
+          "title": "Ders 2: Pull Request",
+          "mediaType": "embed",
+          "mediaUrl": "",
+          "embedHtml": "<iframe src=\"https://www.youtube.com/embed/RGOj5yH7evk\" title=\"Git ve GitHub\"></iframe>",
+          "body": "## Pull request\n\nPull request, bir değişikliği tartışmaya ve gözden geçirmeye açar.\n\n[GitHub dokümanı](https://docs.github.com/en/pull-requests)",
+          "quiz": {
+            "question": "Pull request ne zaman kullanılır?",
+            "options": [
+              "Değişiklikleri inceletmek ve birleştirmek için",
+              "Sadece video yüklemek için",
+              "Şifre değiştirmek için"
+            ],
+            "answer": 0
+          }
+        }
+      ]
+    }
+  ]
+}
