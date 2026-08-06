@@ -768,6 +768,17 @@ a:focus-visible {
   gap: 10px;
 }
 
+.studio-side .actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.studio-side .actions #newDraft {
+  grid-column: 1 / -1;
+}
+
 .manage-item {
   display: grid;
   gap: 12px;
@@ -1080,7 +1091,7 @@ a:focus-visible {
 .lesson-editor-head {
   display: flex;
   align-items: flex-end;
-  gap: 14px;
+  gap: 16px;
   margin-bottom: 20px;
 }
 

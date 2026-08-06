@@ -390,8 +390,8 @@ function detectMedia(url = "") {
   const value = String(url).trim();
   if (!value) return { type: "none" };
 
-  let match = value.match(/(?:youtube\.com\/(?:watch\?.*?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]+)/);
-  if (match) return { type: "video", embed: `https://www.youtube.com/embed/${match[1]}` };
+  let match = value.match(/(?:youtube\.com\/(?:watch\?(?:[^&#]*&)*v=|embed\/|shorts\/|live\/)|youtu\.be\/)([\w-]+)/i);
+  if (match) return { type: "video", embed: `https://www.youtube-nocookie.com/embed/${match[1]}` };
 
   match = value.match(/vimeo\.com\/(?:video\/)?(\d+)/);
   if (match) return { type: "video", embed: `https://player.vimeo.com/video/${match[1]}` };
@@ -429,7 +429,7 @@ function renderMedia(lesson) {
 
   if (detected.type === "video") {
     if (detected.embed) {
-      return frame(`<iframe src="${escapeAttr(detected.embed)}" title="Ders videosu" allowfullscreen></iframe>`);
+      return frame(`<iframe src="${escapeAttr(detected.embed)}" title="Ders videosu" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`);
     }
     return frame(`<video src="${safe}" controls preload="metadata"></video>`);
   }
@@ -577,7 +577,7 @@ function renderStudioMain(course, live, canAddLesson) {
     <div class="section-head">
       <div>
         <h2>${escapeHtml(course.title)}</h2>
-        <p class="muted">${escapeHtml(course.level || "Genel")} · ${course.lessons.length}/${MAX_LESSONS_PER_COURSE} ders</p>
+        <p class="muted" id="lessonCount">${escapeHtml(course.level || "Genel")} · ${course.lessons.length}/${MAX_LESSONS_PER_COURSE} ders</p>
       </div>
       <button class="button subtle" id="editInfo" type="button">Bilgileri düzenle</button>
     </div>
@@ -687,7 +687,11 @@ function bindStudio() {
     saveDraftFromForm({ silent: true });
     state.draft.lessons.push(createEmptyLesson(state.draft.lessons.length + 1));
     saveState();
-    renderStudio();
+    paintLessonEditors();
+    refreshLessonCount();
+    const editors = document.querySelectorAll("[data-lesson-editor]");
+    const last = editors[editors.length - 1];
+    if (last) last.scrollIntoView({ behavior: "smooth", block: "center" });
   });
   on("#saveDraft", saveDraftFromForm);
   on("#publishDraft", publishDraft);
@@ -725,6 +729,7 @@ function paintLessonEditors() {
 
   if (!state.draft.lessons.length) {
     holder.innerHTML = `<div class="empty compact-empty">Henüz ders yok. Dersler isteğe bağlıdır — "Ders ekle" ile başla ya da kursu olduğu gibi yayınla.</div>`;
+    refreshLessonCount();
     return;
   }
 
@@ -778,9 +783,9 @@ function paintLessonEditors() {
   holder.querySelectorAll("[data-remove]").forEach((button) => {
     button.addEventListener("click", () => {
       state.draft.lessons.splice(Number(button.dataset.remove), 1);
-      normalizeLessonTitles(state.draft);
       saveState();
-      renderStudio();
+      paintLessonEditors();
+      refreshLessonCount();
     });
   });
 
@@ -789,6 +794,17 @@ function paintLessonEditors() {
     field.addEventListener("input", sync);
     field.addEventListener("change", sync);
   });
+}
+
+function refreshLessonCount() {
+  const count = document.querySelector("#lessonCount");
+  if (count) {
+    count.textContent = `${state.draft.level || "Genel"} · ${state.draft.lessons.length}/${MAX_LESSONS_PER_COURSE} ders`;
+  }
+  const addBtn = document.querySelector("#addLesson");
+  if (addBtn) {
+    addBtn.disabled = state.draft.lessons.length >= MAX_LESSONS_PER_COURSE;
+  }
 }
 
 function saveDraftFromForm(options = {}) {
@@ -805,7 +821,7 @@ function saveDraftFromForm(options = {}) {
   if (bannerUrl) draft.bannerUrl = bannerUrl.value.trim();
   if (logoUrl) draft.logoUrl = logoUrl.value.trim();
   draft.owner = state.auth?.login || "local";
-  draft.id = slugify(draft.title);
+  if (!draft._originalId) draft.id = slugify(draft.title);
 
   document.querySelectorAll("[data-lesson-editor]").forEach((editor) => {
     const index = Number(editor.dataset.lessonEditor);
@@ -966,8 +982,8 @@ function normalizeLesson(lesson = {}) {
 
 function normalizeLessonTitles(course) {
   course.lessons.forEach((lesson, index) => {
-    const clean = lesson.title.replace(/^Ders\s+\d+\s*:?\s*/i, "").trim();
-    lesson.title = clean ? `Ders ${index + 1}: ${clean}` : `Ders ${index + 1}`;
+    const auto = /^Ders\s+\d+(\s*[:—–-]|\s*$)/i.test(lesson.title.trim());
+    lesson.title = lesson.title.trim() && !auto ? lesson.title.trim() : `Ders ${index + 1}`;
   });
 }
 
@@ -1169,7 +1185,7 @@ function sanitizeEmbed(html = "") {
     return `<div class="empty compact-empty">Embed kaynağı https olmalı.</div>`;
   }
 
-  return `<iframe src="${escapeAttr(src)}" title="${escapeAttr(iframe.getAttribute("title") || "Ders embed")}" allow="${escapeAttr(iframe.getAttribute("allow") || "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture")}" allowfullscreen></iframe>`;
+  return `<iframe src="${escapeAttr(src)}" title="${escapeAttr(iframe.getAttribute("title") || "Ders embed")}" allow="${escapeAttr(iframe.getAttribute("allow") || "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture")}" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>`;
 }
 
 function slugify(value) {
